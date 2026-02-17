@@ -21,7 +21,7 @@ ALWAYS respond with valid JSON:
 
 PHONETIC RULES: Capital letters for stressed syllables. Familiar English sounds. For Munster: stress often on 2nd syllable; ao = ee in Kerry Irish.
 
-Start by greeting the user, introducing yourself as Máire, and teaching Dia duit (hello).`;
+Start by greeting the user, introducing yourself as Finbar, and teaching Dia duit (hello).`;
 
 function PronunciationCard({ word }) {
   const [expanded, setExpanded] = useState(false);
@@ -56,7 +56,7 @@ function Bubble({ msg, onSpeak }) {
         <div style={{flexShrink:0,width:"36px",height:"36px",borderRadius:"50%",background:"#065f46",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>🌿</div>
       )}
       <div style={{maxWidth:"480px"}}>
-        {isCoach && <p style={{fontSize:"11px",fontWeight:"600",color:"#059669",marginBottom:"4px",marginLeft:"4px"}}>Máire — Munster Irish Coach</p>}
+        {isCoach && <p style={{fontSize:"11px",fontWeight:"600",color:"#059669",marginBottom:"4px",marginLeft:"4px"}}>Finbar — Munster Irish Coach</p>}
         <div style={{borderRadius:isCoach?"16px 16px 16px 4px":"16px 16px 4px 16px",padding:"12px 16px",fontSize:"14px",lineHeight:"1.6",background:isCoach?"white":"#065f46",color:isCoach?"#1f2937":"white",border:isCoach?"1px solid #f3f4f6":"none",boxShadow:"0 1px 3px rgba(0,0,0,0.1)"}}>
           {isCoach ? render(msg.text) : msg.text}
         </div>
@@ -184,9 +184,9 @@ export default function App() {
       const coachMsg = {role:"coach", text:parsed.message, words:parsed.words||[]};
       setMessages(prev => [...prev, coachMsg]);
       setSuggestions(parsed.suggestions||[]);
-      // Auto-speak Máire's response
+      // Auto-speak Finbar's response
       setTimeout(() => speak(parsed.message_spoken || parsed.message), 300);
-    } catch { setError("Couldn't connect to Máire. Please try again."); }
+    } catch { setError("Couldn't connect to Finbar. Please try again."); }
     finally { setLoading(false); }
   };
 
@@ -243,7 +243,7 @@ export default function App() {
         <p style={{color:"#6ee7b7",fontSize:"16px",fontStyle:"italic",margin:"0 0 8px"}}>"Welcome" — your Munster Irish journey starts here</p>
         <div style={{width:"64px",height:"2px",background:"#34d399",margin:"24px auto",borderRadius:"2px"}}/>
         <p style={{color:"#d1fae5",fontSize:"15px",lineHeight:"1.7",margin:"0 0 32px"}}>
-          Meet <strong>Máire</strong>, your Munster Irish coach. She'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to her by voice or typing!
+          Meet <strong>Finbar</strong>, your Munster Irish coach. She'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to her by voice or typing!
         </p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px",marginBottom:"32px"}}>
           {[{icon:"🎤",label:"Voice Input"},{icon:"🔈",label:"Spoken Replies"},{icon:"🗺️",label:"Munster Dialect"}].map(f=>(
@@ -270,7 +270,7 @@ export default function App() {
       <div style={{background:"#065f46",color:"white",padding:"12px 16px",display:"flex",alignItems:"center",gap:"12px",boxShadow:"0 2px 8px rgba(0,0,0,0.2)",flexShrink:0}}>
         <div style={{width:"40px",height:"40px",borderRadius:"50%",background:"#047857",border:"2px solid #6ee7b7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🌿</div>
         <div>
-          <div style={{fontWeight:"700",fontSize:"15px"}}>Máire — Munster Irish Coach</div>
+          <div style={{fontWeight:"700",fontSize:"15px"}}>Finbar — Irish Coach</div>
           <div style={{color:"#6ee7b7",fontSize:"12px"}}>Gaeilge na Mumhan • Kerry & Cork dialect</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px"}}>
@@ -341,7 +341,7 @@ export default function App() {
           </button>
         </div>
         <p style={{textAlign:"center",color:"#9ca3af",fontSize:"11px",marginTop:"8px"}}>
-          {listening ? "🔴 Listening — speak now, or tap ⏹ to stop" : "🎤 Tap mic to speak • Enter to send • Tap 🔈 to hear Máire"}
+          {listening ? "🔴 Listening — speak now, or tap ⏹ to stop" : "🎤 Tap mic to speak • Enter to send • Tap 🔈 to hear Finbar"}
         </p>
       </div>
     </div>
