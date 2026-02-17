@@ -148,6 +148,28 @@ export default function App() {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IE";
     recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.onstart = () => setListening(true);
+    recognition.onresult = (e) => {
+      const transcript = e.results[e.results.length - 1][0].transcript;
+      setInput(prev => prev + (prev ? " " : "") + transcript);
+    };
+    recognition.onerror = (e) => {
+      if (e.error !== 'no-speech') {
+        console.log('Speech error:', e.error);
+      }
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+      }
+    };
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IE";
+    recognition.interimResults = false;
     recognition.onstart = () => setListening(true);
     recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript;
