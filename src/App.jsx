@@ -105,7 +105,7 @@ export default function App() {
     const clean = text.replace(/\*\*/g, "");
     try {
       setSpeaking(true);
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: clean })
