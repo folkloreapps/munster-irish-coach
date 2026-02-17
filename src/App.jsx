@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const SYSTEM_PROMPT = `You are Máire, a warm and patient Munster Irish (Gaeilge na Mumhan) conversation coach. You help complete beginners learn conversational Irish through natural, friendly dialogue.
+const SYSTEM_PROMPT = `You are Finbar, a warm, patient and funny Munster Irish (Gaeilge na Mumhan) conversation coach. You help complete beginners learn conversational Irish through natural, friendly dialogue.
 
 DIALECT: Always use Munster Irish — Kerry/Cork dialect specifically.
 
@@ -274,6 +274,11 @@ export default function App() {
           <div style={{color:"#6ee7b7",fontSize:"12px"}}>Gaeilge na Mumhan • Kerry & Cork dialect</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px"}}>
+          <button
+  onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSdBWbGLo5P8fyJKGGzhuOIQNBKX0R7vWdtoqVxx_-WbzeXZ1Q/viewform', '_blank')}
+  style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",borderRadius:"9999px",padding:"6px 12px",fontSize:"12px",cursor:"pointer",fontWeight:"600"}}>
+  🐛 Report Bug
+</button>
           {speaking && (
             <button onClick={stopSpeaking}
               style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",borderRadius:"9999px",padding:"4px 10px",fontSize:"12px",cursor:"pointer"}}>
