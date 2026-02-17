@@ -105,7 +105,7 @@ export default function App() {
     const clean = text.replace(/\*\*/g, "");
     try {
       setSpeaking(true);
-      const res = await fetch("http://localhost:3001/api/speak", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: clean })
@@ -170,7 +170,7 @@ export default function App() {
     if (userMsg) history.current.push({role:"user", content:userMsg});
     const msgs = history.current.length > 0 ? history.current : [{role:"user", content:"Please start the lesson!"}];
     try {
-      const res = await fetch("http://localhost:3001/api/chat", {
+      const res = await fetch("/api/speak", {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1000, system:SYSTEM_PROMPT, messages:msgs})
       });
