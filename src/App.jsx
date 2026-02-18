@@ -338,7 +338,7 @@ export default function App() {
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
             placeholder={listening ? "Listening... speak now!" : "Type or use the mic..."}
             rows={1}
-            style={{flex:1,resize:"none",borderRadius:"12px",border:"1px solid #e5e7eb",padding:"10px 16px",fontSize:"14px",outline:"none",background:listening?"#fef2f2":"#f9fafb",maxHeight:"100px",fontFamily:"inherit",transition:"background 0.2s"}}
+            style={{flex:1,resize:"none",borderRadius:"12px",border:"1px solid #e5e7eb",padding:"10px 16px",fontSize:"14px",outline:"none",background:listening?"#fef2f2":"#f9fafb",color:"#1f2937",maxHeight:"100px",fontFamily:"inherit",transition:"background 0.2s"}}
           />
           <button onClick={()=>send()} disabled={!input.trim()||loading}
             style={{background:input.trim()&&!loading?"#065f46":"#d1d5db",color:"white",borderRadius:"12px",padding:"10px 16px",fontWeight:"700",fontSize:"14px",border:"none",cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0}}>
