@@ -134,39 +134,19 @@ export default function App() {
   };
 
   const stopSpeaking = () => {
-    window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setSpeaking(false);
   };
 
-  // Speech to text
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Sorry, your browser doesn't support voice input. Try Chrome!");
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IE";
-    recognition.interimResults = false;
-    recognition.continuous = true;
-    recognition.onstart = () => setListening(true);
-    recognition.onresult = (e) => {
-      const transcript = e.results[e.results.length - 1][0].transcript;
-      setInput(prev => prev + (prev ? " " : "") + transcript);
-    };
-    recognition.onerror = (e) => {
-      if (e.error !== 'no-speech') {
-        console.log('Speech error:', e.error);
-      }
-    };
-    recognition.onend = () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-      }
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IE";
     recognition.interimResults = false;
@@ -188,28 +168,35 @@ export default function App() {
   };
 
   const callClaude = async (userMsg) => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     if (userMsg) history.current.push({role:"user", content:userMsg});
     const msgs = history.current.length > 0 ? history.current : [{role:"user", content:"Please start the lesson!"}];
     try {
       const res = await fetch("/api/chat", {
-        method:"POST", headers:{"Content-Type":"application/json"},
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
         body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1000, system:SYSTEM_PROMPT, messages:msgs})
       });
       const data = await res.json();
-      console.log('API response:', data);
       const raw = data.content?.[0]?.text || "";
       let parsed;
-      try { const m = raw.match(/\{[\s\S]*\}/); parsed = JSON.parse(m ? m[0] : raw); }
-      catch { parsed = {message:raw, words:[], suggestions:[]}; }
+      try {
+        const m = raw.match(/\{[\s\S]*\}/);
+        parsed = JSON.parse(m ? m[0] : raw);
+      } catch {
+        parsed = {message:raw, words:[], suggestions:[]};
+      }
       history.current.push({role:"assistant", content:raw});
       const coachMsg = {role:"coach", text:parsed.message, words:parsed.words||[]};
       setMessages(prev => [...prev, coachMsg]);
       setSuggestions(parsed.suggestions||[]);
-      // Auto-speak Finbar's response
       setTimeout(() => speak(parsed.message_spoken || parsed.message), 300);
-    } catch { setError("Couldn't connect to Finbar. Please try again."); }
-    finally { setLoading(false); }
+    } catch {
+      setError("Couldn't connect to Finbar. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const send = (text) => {
@@ -217,7 +204,8 @@ export default function App() {
     if (!msg || loading) return;
     stopSpeaking();
     setMessages(prev => [...prev, {role:"user", text:msg}]);
-    setInput(""); setSuggestions([]);
+    setInput("");
+    setSuggestions([]);
     callClaude(msg);
     inputRef.current?.focus();
   };
@@ -288,7 +276,6 @@ export default function App() {
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"#f9fafb"}}>
       <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
 
-      {/* Header */}
       <div style={{background:"#065f46",color:"white",padding:"12px 16px",display:"flex",alignItems:"center",gap:"12px",boxShadow:"0 2px 8px rgba(0,0,0,0.2)",flexShrink:0}}>
         <div style={{width:"40px",height:"40px",borderRadius:"50%",background:"#047857",border:"2px solid #6ee7b7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🌿</div>
         <div>
@@ -297,10 +284,10 @@ export default function App() {
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px"}}>
           <button
-  onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSdBWbGLo5P8fyJKGGzhuOIQNBKX0R7vWdtoqVxx_-WbzeXZ1Q/viewform', '_blank')}
-  style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",borderRadius:"9999px",padding:"6px 12px",fontSize:"12px",cursor:"pointer",fontWeight:"600"}}>
-  🐛 Report Bug
-</button>
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSdBWbGLo5P8fyJKGGzhuOIQNBKX0R7vWdtoqVxx_-WbzeXZ1Q/viewform', '_blank')}
+            style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",borderRadius:"9999px",padding:"6px 12px",fontSize:"12px",cursor:"pointer",fontWeight:"600"}}>
+            🐛 Report Bug
+          </button>
           {speaking && (
             <button onClick={stopSpeaking}
               style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",borderRadius:"9999px",padding:"4px 10px",fontSize:"12px",cursor:"pointer"}}>
@@ -312,7 +299,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Messages */}
       <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
         {messages.map((msg,i) => <Bubble key={i} msg={msg} onSpeak={speak}/>)}
         {loading && (
@@ -327,7 +313,6 @@ export default function App() {
         <div ref={bottomRef}/>
       </div>
 
-      {/* Suggestions */}
       {suggestions.length > 0 && !loading && (
         <div style={{padding:"8px 16px",flexShrink:0}}>
           <p style={{fontSize:"11px",color:"#9ca3af",marginBottom:"8px",fontWeight:"600"}}>💡 Suggested replies:</p>
@@ -342,10 +327,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Input */}
       <div style={{background:"white",borderTop:"1px solid #e5e7eb",padding:"12px 16px",flexShrink:0}}>
         <div style={{display:"flex",gap:"8px",alignItems:"flex-end"}}>
-          {/* Mic button */}
           <button
             onClick={listening ? stopListening : startListening}
             style={{flexShrink:0,width:"44px",height:"44px",borderRadius:"50%",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",background:listening?"#dc2626":"#065f46",boxShadow:"0 2px 6px rgba(0,0,0,0.2)",animation:listening?"pulse 1s infinite":"none"}}>
@@ -368,3 +351,4 @@ export default function App() {
       </div>
     </div>
   );
+}
