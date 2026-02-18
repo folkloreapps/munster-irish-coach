@@ -265,7 +265,7 @@ export default function App() {
         <p style={{color:"#6ee7b7",fontSize:"16px",fontStyle:"italic",margin:"0 0 8px"}}>"Welcome" — your Munster Irish journey starts here</p>
         <div style={{width:"64px",height:"2px",background:"#34d399",margin:"24px auto",borderRadius:"2px"}}/>
         <p style={{color:"#d1fae5",fontSize:"15px",lineHeight:"1.7",margin:"0 0 32px"}}>
-          Meet <strong>Finbar</strong>, your Munster Irish coach. She'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to her by voice or typing!
+          Meet <strong>Finbar</strong>, your Munster Irish coach. He'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to him by voice or typing!
         </p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px",marginBottom:"32px"}}>
           {[{icon:"🎤",label:"Voice Input"},{icon:"🔈",label:"Spoken Replies"},{icon:"🗺️",label:"Munster Dialect"}].map(f=>(
@@ -368,4 +368,3 @@ export default function App() {
       </div>
     </div>
   );
-}
