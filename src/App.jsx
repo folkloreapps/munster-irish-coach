@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+
 const API_BASE = import.meta.env.DEV ? "http://localhost:3001" : "";
 
 const SYSTEM_PROMPT = `You are Finbar, a warm, patient and funny Munster Irish (Gaeilge na Mumhan) conversation coach. You help complete beginners learn conversational Irish through natural, friendly dialogue.
@@ -13,6 +14,12 @@ YOUR TEACHING APPROACH:
 - Use practical phrases first: greetings, introductions, feelings.
 - Include authentic Irish slang and swear words when contextually appropriate - this is real conversational Irish!
 
+IMPORTANT: Users speak their Irish attempts out loud, but the speech-to-text captures them as English phonetic approximations. For example, "Dia duit" might come through as "jia gwitch" or "dee-ah gwit". You need to:
+- Recognize when they're attempting Irish words based on context and phonetics
+- Gently correct pronunciation: "Ah, you're saying **Dia duit**! Nearly perfect - just put a bit more emphasis on the first syllable: JEE-uh GWITCH"
+- Celebrate their courage to try speaking Irish out loud
+- Never make them feel bad about mispronunciation
+
 ALWAYS respond with valid JSON:
 {
   "message": "Your response weaving in Irish naturally. Use **bold** around Irish words.",
@@ -21,7 +28,7 @@ ALWAYS respond with valid JSON:
   "suggestions": ["reply 1", "reply 2", "reply 3"]
 }
 
-PHONETIC RULES: Capital letters for stressed syllables. Familiar English sounds. For Munster: stress often on 2nd syllable; ao = ee in Kerry Irish.
+PHONETIC RULES: Capital letters for stressed syllables. Familiar English sounds. For Munster: stress often on first syllable; ao = ee in Kerry Irish.
 
 Start by greeting the user, introducing yourself as Finbar, and teaching Dia duit (hello).`;
 
@@ -33,7 +40,7 @@ function PronunciationCard({ word }) {
       <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
         <span style={{fontSize:"14px",fontWeight:"bold",color:"#064e3b"}}>{word.irish}</span>
         <span style={{borderRadius:"9999px",background:"#059669",padding:"2px 8px",fontSize:"11px",fontWeight:"600",color:"white"}}>{word.phonetic}</span>
-        <span style={{fontSize:"11px",color:"#059669"}}>{expanded?"▲":"▼"}</span>
+        <span style={{fontSize:"11px",color:"#059669"}}>{expanded ? "▲" : "▼"}</span>
       </div>
       <span style={{marginTop:"4px",fontSize:"11px",color:"#047857",fontStyle:"italic"}}>"{word.english}"</span>
       {expanded && word.munster_note && (
@@ -68,12 +75,12 @@ function Bubble({ msg, onSpeak }) {
               style={{fontSize:"11px",color:"#059669",background:"none",border:"1px solid #a7f3d0",borderRadius:"9999px",padding:"3px 10px",cursor:"pointer"}}>
               🔈 Hear this
             </button>
-            {msg.words?.length > 0 && (
+            {msg.words && msg.words.length > 0 && (
               <span style={{fontSize:"11px",color:"#9ca3af",fontWeight:"600",textTransform:"uppercase",letterSpacing:"0.05em"}}>🔊 Tap for pronunciation:</span>
             )}
           </div>
         )}
-        {isCoach && msg.words?.length > 0 && (
+        {isCoach && msg.words && msg.words.length > 0 && (
           <div style={{marginTop:"4px",marginLeft:"4px",display:"flex",flexWrap:"wrap"}}>
             {msg.words.map((w,i) => <PronunciationCard key={i} word={w}/>)}
           </div>
@@ -94,12 +101,17 @@ export default function App() {
   const [error, setError] = useState(null);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const history = useRef([]);
   const recognitionRef = useRef(null);
+  const silenceTimerRef = useRef(null);
+  const shouldReactivateMic = useRef(false);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages, loading]);
+  useEffect(() => { 
+    bottomRef.current?.scrollIntoView({behavior:"smooth"}); 
+  }, [messages, loading]);
 
   const audioRef = useRef(null);
 
@@ -113,8 +125,7 @@ export default function App() {
         body: JSON.stringify({ text: clean })
       });
       if (!res.ok) {
-        console.error('Voice API failed, falling back to system voice');
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(clean));
+        console.error('Voice API failed');
         setSpeaking(false);
         return;
       }
@@ -126,7 +137,12 @@ export default function App() {
       }
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onended = () => setSpeaking(false);
+      audio.onended = () => {
+        setSpeaking(false);
+        if (shouldReactivateMic.current) {
+          setTimeout(() => startListening(), 1500);
+        }
+      };
       audio.onerror = () => setSpeaking(false);
       audio.play();
     } catch (err) {
@@ -149,22 +165,54 @@ export default function App() {
       alert("Sorry, your browser doesn't support voice input. Try Chrome!");
       return;
     }
+    
+    shouldReactivateMic.current = true;
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IE";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    
     recognition.onstart = () => setListening(true);
+    
     recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
+      clearTimeout(silenceTimerRef.current);
+      
+      const transcript = Array.from(e.results)
+        .map(result => result[0].transcript)
+        .join('');
+      
       setInput(transcript);
-      setListening(false);
+      
+      const isFinal = e.results[e.results.length - 1].isFinal;
+      
+      if (isFinal) {
+        silenceTimerRef.current = setTimeout(() => {
+          if (transcript.trim()) {
+            stopListening();
+            send(transcript);
+          }
+        }, 4000);
+      }
     };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
+    
+    recognition.onerror = (e) => {
+      if (e.error !== 'no-speech') {
+        console.log('Speech error:', e.error);
+      }
+    };
+    
+    recognition.onend = () => {
+      setListening(false);
+      clearTimeout(silenceTimerRef.current);
+    };
+    
     recognitionRef.current = recognition;
     recognition.start();
   };
 
   const stopListening = () => {
+    shouldReactivateMic.current = false;
+    clearTimeout(silenceTimerRef.current);
     recognitionRef.current?.stop();
     setListening(false);
   };
@@ -209,7 +257,6 @@ export default function App() {
     setInput("");
     setSuggestions([]);
     callClaude(msg);
-    inputRef.current?.focus();
   };
 
   if (!authenticated) {
@@ -247,32 +294,34 @@ export default function App() {
     );
   }
 
-  if (!started) return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#064e3b,#065f46,#0f766e)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}}>
-      <div style={{textAlign:"center",maxWidth:"400px",width:"100%"}}>
-        <div style={{fontSize:"64px",marginBottom:"16px"}}>🍀</div>
-        <h1 style={{fontSize:"36px",fontWeight:"800",color:"white",margin:"0 0 8px"}}>Fáilte Romhat</h1>
-        <p style={{color:"#6ee7b7",fontSize:"16px",fontStyle:"italic",margin:"0 0 8px"}}>"Welcome" — your Munster Irish journey starts here</p>
-        <div style={{width:"64px",height:"2px",background:"#34d399",margin:"24px auto",borderRadius:"2px"}}/>
-        <p style={{color:"#d1fae5",fontSize:"15px",lineHeight:"1.7",margin:"0 0 32px"}}>
-          Meet <strong>Finbar</strong>, your Munster Irish coach. He'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to him by voice or typing!
-        </p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px",marginBottom:"32px"}}>
-          {[{icon:"🎤",label:"Voice Input"},{icon:"🔈",label:"Spoken Replies"},{icon:"🗺️",label:"Munster Dialect"}].map(f=>(
-            <div key={f.label} style={{background:"rgba(255,255,255,0.1)",borderRadius:"12px",padding:"12px",textAlign:"center"}}>
-              <div style={{fontSize:"24px",marginBottom:"4px"}}>{f.icon}</div>
-              <div style={{fontSize:"11px",color:"#a7f3d0",fontWeight:"600"}}>{f.label}</div>
-            </div>
-          ))}
+  if (!started) {
+    return (
+      <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#064e3b,#065f46,#0f766e)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}}>
+        <div style={{textAlign:"center",maxWidth:"400px",width:"100%"}}>
+          <div style={{fontSize:"64px",marginBottom:"16px"}}>🍀</div>
+          <h1 style={{fontSize:"36px",fontWeight:"800",color:"white",margin:"0 0 8px"}}>Fáilte Romhat</h1>
+          <p style={{color:"#6ee7b7",fontSize:"16px",fontStyle:"italic",margin:"0 0 8px"}}>"Welcome" — your Munster Irish journey starts here</p>
+          <div style={{width:"64px",height:"2px",background:"#34d399",margin:"24px auto",borderRadius:"2px"}}/>
+          <p style={{color:"#d1fae5",fontSize:"15px",lineHeight:"1.7",margin:"0 0 32px"}}>
+            Meet <strong>Finbar</strong>, your Munster Irish coach. He'll teach you real conversational Irish — the way it's spoken in Kerry and Cork — and you can talk to him by voice or typing!
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px",marginBottom:"32px"}}>
+            {[{icon:"🎤",label:"Voice Input"},{icon:"🔈",label:"Spoken Replies"},{icon:"🗺️",label:"Munster Dialect"}].map(f => (
+              <div key={f.label} style={{background:"rgba(255,255,255,0.1)",borderRadius:"12px",padding:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"24px",marginBottom:"4px"}}>{f.icon}</div>
+                <div style={{fontSize:"11px",color:"#a7f3d0",fontWeight:"600"}}>{f.label}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => {setStarted(true); callClaude(null);}}
+            style={{width:"100%",background:"white",color:"#064e3b",fontWeight:"800",fontSize:"18px",padding:"16px",borderRadius:"16px",border:"none",cursor:"pointer",boxShadow:"0 10px 25px rgba(0,0,0,0.3)"}}>
+            Tosaigh — Let's Begin! 🌿
+          </button>
+          <p style={{color:"#6ee7b7",fontSize:"12px",marginTop:"12px"}}>No Irish knowledge needed</p>
         </div>
-        <button onClick={()=>{setStarted(true); callClaude(null);}}
-          style={{width:"100%",background:"white",color:"#064e3b",fontWeight:"800",fontSize:"18px",padding:"16px",borderRadius:"16px",border:"none",cursor:"pointer",boxShadow:"0 10px 25px rgba(0,0,0,0.3)"}}>
-          Tosaigh — Let's Begin! 🌿
-        </button>
-        <p style={{color:"#6ee7b7",fontSize:"12px",marginTop:"12px"}}>No Irish knowledge needed</p>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"#f9fafb"}}>
@@ -282,7 +331,7 @@ export default function App() {
         <div style={{width:"40px",height:"40px",borderRadius:"50%",background:"#047857",border:"2px solid #6ee7b7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🌿</div>
         <div>
           <div style={{fontWeight:"700",fontSize:"15px"}}>Finbar — Irish Coach</div>
-          <div style={{color:"#6ee7b7",fontSize:"12px"}}>Gaeilge na Mumhan • Kerry & Cork dialect</div>
+          <div style={{color:"#6ee7b7",fontSize:"12px"}}>Gaeilge na Mumhan • Hands-Free Mode</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px"}}>
           <button
@@ -296,8 +345,12 @@ export default function App() {
               ⏹ Stop
             </button>
           )}
-          <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#34d399",display:"inline-block",animation:"bounce 2s infinite"}}/>
-          <span style={{color:"#6ee7b7",fontSize:"12px"}}>Live</span>
+          {listening && (
+            <span style={{color:"#6ee7b7",fontSize:"12px",display:"flex",alignItems:"center",gap:"4px"}}>
+              <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#ef4444",display:"inline-block",animation:"pulse 1s infinite"}}/>
+              Listening...
+            </span>
+          )}
         </div>
       </div>
 
@@ -307,7 +360,7 @@ export default function App() {
           <div style={{display:"flex",gap:"12px",marginBottom:"16px"}}>
             <div style={{flexShrink:0,width:"36px",height:"36px",borderRadius:"50%",background:"#065f46",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>🌿</div>
             <div style={{background:"white",borderRadius:"16px 16px 16px 4px",border:"1px solid #f3f4f6",padding:"12px 16px",display:"flex",gap:"4px",alignItems:"center"}}>
-              {[0,150,300].map((d,i)=><span key={i} style={{width:"8px",height:"8px",borderRadius:"50%",background:"#34d399",display:"inline-block",animation:`bounce 1s ${d}ms infinite`}}/>)}
+              {[0,150,300].map((d,i) => <span key={i} style={{width:"8px",height:"8px",borderRadius:"50%",background:"#34d399",display:"inline-block",animation:`bounce 1s ${d}ms infinite`}}/>)}
             </div>
           </div>
         )}
@@ -319,8 +372,8 @@ export default function App() {
         <div style={{padding:"8px 16px",flexShrink:0}}>
           <p style={{fontSize:"11px",color:"#9ca3af",marginBottom:"8px",fontWeight:"600"}}>💡 Suggested replies:</p>
           <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
-            {suggestions.map((s,i)=>(
-              <button key={i} onClick={()=>send(s)}
+            {suggestions.map((s,i) => (
+              <button key={i} onClick={() => send(s)}
                 style={{background:"white",border:"1px solid #6ee7b7",color:"#065f46",fontSize:"13px",borderRadius:"9999px",padding:"6px 16px",cursor:"pointer",boxShadow:"0 1px 3px rgba(0,0,0,0.1)"}}>
                 {s}
               </button>
@@ -329,27 +382,59 @@ export default function App() {
         </div>
       )}
 
-      <div style={{background:"white",borderTop:"1px solid #e5e7eb",padding:"12px 16px",flexShrink:0}}>
-        <div style={{display:"flex",gap:"8px",alignItems:"flex-end"}}>
+      <div style={{background:"white",borderTop:"1px solid #e5e7eb",padding:"16px",flexShrink:0}}>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px"}}>
           <button
             onClick={listening ? stopListening : startListening}
-            style={{flexShrink:0,width:"44px",height:"44px",borderRadius:"50%",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",background:listening?"#dc2626":"#065f46",boxShadow:"0 2px 6px rgba(0,0,0,0.2)",animation:listening?"pulse 1s infinite":"none"}}>
+            style={{width:"64px",height:"64px",borderRadius:"50%",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"28px",background:listening?"#ef4444":"#065f46",color:"white",boxShadow:"0 4px 12px rgba(0,0,0,0.3)",transition:"all 0.2s",transform:listening?"scale(1.05)":"scale(1)"}}>
             {listening ? "⏹" : "🎤"}
           </button>
-          <textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
-            placeholder={listening ? "Listening... speak now!" : "Type or use the mic..."}
-            rows={1}
-            style={{flex:1,resize:"none",borderRadius:"12px",border:"1px solid #e5e7eb",padding:"10px 16px",fontSize:"14px",outline:"none",background:listening?"#fef2f2":"#f9fafb",color:"#1f2937",maxHeight:"100px",fontFamily:"inherit",transition:"background 0.2s"}}
-          />
-          <button onClick={()=>send()} disabled={!input.trim()||loading}
-            style={{background:input.trim()&&!loading?"#065f46":"#d1d5db",color:"white",borderRadius:"12px",padding:"10px 16px",fontWeight:"700",fontSize:"14px",border:"none",cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0}}>
-            Seol ↑
-          </button>
+
+          {listening && input && (
+            <div style={{background:"#f3f4f6",borderRadius:"12px",padding:"10px 16px",maxWidth:"90%",textAlign:"center"}}>
+              <p style={{fontSize:"13px",color:"#6b7280",margin:0}}>"{input}"</p>
+            </div>
+          )}
+          
+          {!showTextInput && (
+            <button
+              onClick={() => setShowTextInput(true)}
+              style={{background:"transparent",border:"none",color:"#9ca3af",fontSize:"12px",cursor:"pointer",textDecoration:"underline"}}>
+              ✏️ Type Instead
+            </button>
+          )}
+
+          {showTextInput && (
+            <div style={{width:"100%",display:"flex",gap:"8px",alignItems:"flex-end"}}>
+              <textarea 
+                ref={inputRef} 
+                value={input} 
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+                placeholder="Type your message..."
+                rows={1}
+                style={{flex:1,resize:"none",borderRadius:"12px",border:"1px solid #e5e7eb",padding:"10px 16px",fontSize:"14px",outline:"none",background:"#f9fafb",color:"#1f2937",maxHeight:"100px",fontFamily:"inherit"}}
+              />
+              <button 
+                onClick={() => send()} 
+                disabled={!input.trim()||loading}
+                style={{background:input.trim()&&!loading?"#065f46":"#d1d5db",color:"white",borderRadius:"12px",padding:"10px 16px",fontWeight:"700",fontSize:"14px",border:"none",cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0}}>
+                Send ↑
+              </button>
+              <button
+                onClick={() => {setShowTextInput(false); setInput("");}}
+                style={{background:"transparent",border:"none",color:"#9ca3af",fontSize:"12px",cursor:"pointer",textDecoration:"underline"}}>
+                🎤 Voice Mode
+              </button>
+            </div>
+          )}
+
+          <p style={{fontSize:"11px",color:"#9ca3af",textAlign:"center",margin:0}}>
+            {listening 
+              ? "🔴 Listening... Finbar will respond after 4 seconds of silence" 
+              : "🎤 Tap mic to start hands-free conversation"}
+          </p>
         </div>
-        <p style={{textAlign:"center",color:"#9ca3af",fontSize:"11px",marginTop:"8px"}}>
-          {listening ? "🔴 Listening — speak now, or tap ⏹ to stop" : "🎤 Tap mic to speak • Enter to send • Tap 🔈 to hear Finbar"}
-        </p>
       </div>
     </div>
   );
