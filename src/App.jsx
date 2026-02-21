@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+const API_BASE = import.meta.env.DEV ? "http://localhost:3001" : "";
 
 const SYSTEM_PROMPT = `You are Finbar, a warm, patient and funny Munster Irish (Gaeilge na Mumhan) conversation coach. You help complete beginners learn conversational Irish through natural, friendly dialogue.
 
@@ -106,7 +107,7 @@ export default function App() {
     const clean = text.replace(/\*\*/g, "");
     try {
       setSpeaking(true);
-      const res = await fetch("/api/speak", {
+      const res = await fetch(`${API_BASE}/api/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: clean })
@@ -174,7 +175,7 @@ export default function App() {
     if (userMsg) history.current.push({role:"user", content:userMsg});
     const msgs = history.current.length > 0 ? history.current : [{role:"user", content:"Please start the lesson!"}];
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1000, system:SYSTEM_PROMPT, messages:msgs})
