@@ -94,13 +94,25 @@ export default async function handler(req, res) {
       `https://${speechRegion}.api.cognitive.microsoft.com` +
       `/speechtotext/transcriptions:transcribe?api-version=2024-11-15`;
 
+    // Convert the form-data stream to a Buffer.
+    // Native fetch() in Node.js can't consume form-data streams directly —
+    // it causes "Failed to read the request form" errors on Azure's end.
+    // By reading the entire stream into a Buffer first, fetch() sends it correctly.
+    const formBuffer = await new Promise((resolve, reject) => {
+      const chunks = [];
+      form.on('data', (chunk) => chunks.push(chunk));
+      form.on('end', () => resolve(Buffer.concat(chunks)));
+      form.on('error', reject);
+      form.resume(); // start reading the stream
+    });
+
     const azureResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Ocp-Apim-Subscription-Key': speechKey,
-        ...form.getHeaders(),
+        ...form.getHeaders(),   // includes the correct Content-Type with boundary
       },
-      body: form,
+      body: formBuffer,         // Buffer instead of stream — works with native fetch()
     });
 
     if (!azureResponse.ok) {
