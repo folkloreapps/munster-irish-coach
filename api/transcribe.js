@@ -100,7 +100,11 @@ export default async function handler(req, res) {
     // By reading the entire stream into a Buffer first, fetch() sends it correctly.
     const formBuffer = await new Promise((resolve, reject) => {
       const chunks = [];
-      form.on('data', (chunk) => chunks.push(chunk));
+      form.on('data', (chunk) => {
+        // form-data emits strings for text fields and Buffers for binary fields.
+        // Buffer.concat needs all items to be Buffers, so convert strings.
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
       form.on('end', () => resolve(Buffer.concat(chunks)));
       form.on('error', reject);
       form.resume(); // start reading the stream
