@@ -7,8 +7,8 @@
 //
 // HOW IT WORKS:
 //   1. The app records audio on the phone (M4A format)
-//   2. The app POSTs the audio bytes here as multipart/form-data
-//   3. We convert the audio to a buffer and send it to Azure
+//   2. The app reads the audio as base64 and POSTs it as JSON: { audio: "..." }
+//   3. We decode the base64 back to a Buffer and send it to Azure
 //   4. Azure's auto language detection picks between Irish and English
 //   5. We return the transcript + detected language to the app
 //
@@ -19,13 +19,11 @@
 
 import sdk from 'microsoft-cognitiveservices-speech-sdk';
 
-// Vercel serverless functions need to handle raw body for file uploads.
-// This tells Vercel NOT to parse the body as JSON — we need the raw bytes.
+// Allow larger request bodies (audio can be a few MB as base64).
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',   // M4A audio chunks are small, but allow up to 10MB
-      raw: true,            // Give us the raw Buffer, not parsed JSON
+      sizeLimit: '10mb',
     },
   },
 };
@@ -49,15 +47,15 @@ export default async function handler(req, res) {
     }
 
     // --- Get the audio data from the request body ---
-    // The app sends the raw audio bytes as the POST body
-    // with Content-Type set to the audio format (audio/mp4 for M4A).
-    const audioBuffer = Buffer.isBuffer(req.body)
-      ? req.body
-      : Buffer.from(req.body);
+    // The app sends base64-encoded audio inside a JSON body: { audio: "..." }
+    // We decode it back to a Buffer for Azure.
+    const { audio } = req.body || {};
 
-    if (!audioBuffer || audioBuffer.length === 0) {
-      return res.status(400).json({ error: 'No audio data received' });
+    if (!audio) {
+      return res.status(400).json({ error: 'No audio data received. Expected JSON with "audio" field.' });
     }
+
+    const audioBuffer = Buffer.from(audio, 'base64');
 
     console.log('[TRANSCRIBE] Received audio:', audioBuffer.length, 'bytes');
 
