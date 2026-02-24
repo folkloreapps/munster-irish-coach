@@ -84,9 +84,15 @@ export default async function handler(req, res) {
       contentType: 'audio/mp4',
     });
 
-    // Attach the transcription settings — bilingual Irish + English
+    // Attach the transcription settings.
+    // Use en-IE as the primary locale so Azure doesn't fail trying to
+    // auto-detect the language. ga-IE is listed as a candidate so Azure
+    // can still recognise Irish when it hears it.
     form.append('definition', JSON.stringify({
-      locales: ['ga-IE', 'en-IE'],
+      locales: ['en-IE'],
+      languageIdentification: {
+        candidateLocales: ['en-IE', 'ga-IE'],
+      },
     }));
 
     // --- Send to Azure Fast Transcription REST API ---
